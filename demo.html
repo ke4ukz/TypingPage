@@ -29,6 +29,10 @@
     transform: translateX(-50%);
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 16px);
+    box-sizing: border-box;
     gap: 6px;
     padding: 6px 6px 6px 14px;
     border-radius: 999px;
@@ -56,6 +60,13 @@
     color: rgba(255,255,255,.45);
     margin-right: 6px;
     white-space: nowrap;
+  }
+
+  #presets {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
   }
 
   #bar .sep {
@@ -90,10 +101,10 @@
   #panel {
     position: fixed;
     z-index: 19;
-    top: 70px;
+    top: calc(var(--bar-h, 48px) + 24px);
     left: 50%;
-    width: min(760px, calc(100vw - 48px));
-    max-height: calc(100vh - 110px);
+    width: min(760px, calc(100vw - 32px));
+    max-height: calc(100svh - var(--bar-h, 48px) - 44px);
     transform: translateX(-50%);
     display: none;
     flex-direction: column;
@@ -149,6 +160,53 @@
     transition: opacity .35s ease;
   }
   body.idle #hint { opacity: 0; }
+  #hint .narrow { display: none; }
+
+  /* ---- narrow screens: phones, and portrait signage being previewed ---- */
+
+  @media (max-width: 760px) {
+    #bar {
+      top: 8px;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 18px;
+    }
+    #bar .brand { display: none; }
+    #bar .sep { display: none; }
+    button { padding: 7px 11px; font-size: 12px; }
+    #panel { width: calc(100vw - 16px); }
+    #configText { font-size: 11px; padding: 12px; }
+    #hint .wide { display: none; }
+    #hint .narrow { display: inline; }
+  }
+
+  @media (max-width: 460px) {
+    button { padding: 6px 9px; font-size: 11.5px; }
+    /* The panel becomes a bottom sheet — far easier to reach one-handed. */
+    #panel {
+      top: auto;
+      bottom: 0;
+      width: 100vw;
+      max-height: 68svh;
+      border-radius: 14px 14px 0 0;
+      border-bottom: 0;
+    }
+  }
+
+  /* ---- touch: no pointer to hide, and taps need a longer grace period ---- */
+
+  @media (pointer: coarse) {
+    body.idle { cursor: auto; }
+    button { padding: 9px 13px; }   /* larger hit targets */
+  }
+
+  /* ---- short-and-wide, e.g. a laptop in a small window ---- */
+
+  @media (max-height: 520px) {
+    #bar { top: 6px; padding: 4px 4px 4px 10px; }
+    button { padding: 6px 10px; font-size: 12px; }
+    #hint { display: none; }
+  }
 </style>
 </head>
 <body class="ui">
@@ -157,7 +215,7 @@
 
 <div id="bar">
   <span class="brand">Typing Page</span>
-  <div id="presets" style="display:flex;gap:4px"></div>
+  <div id="presets"></div>
   <div class="sep"></div>
   <button id="speedBtn" class="on" title="Fast demo pacing vs. uniform lifelike pacing">Demo speed</button>
   <button id="restartBtn" class="ghost">Restart</button>
@@ -174,7 +232,7 @@
   <pre id="configText"></pre>
 </div>
 
-<div id="hint">move the mouse for controls &nbsp;·&nbsp; 1&ndash;5 presets &nbsp;·&nbsp; S speed &nbsp;·&nbsp; C config &nbsp;·&nbsp; R restart</div>
+<div id="hint"><span class="wide">move the mouse for controls &nbsp;·&nbsp; 1&ndash;5 presets &nbsp;·&nbsp; S speed &nbsp;·&nbsp; C config &nbsp;·&nbsp; R restart</span><span class="narrow">tap for controls</span></div>
 
 <script src="typing-page.js"></script>
 <script src="presets.js"></script>
@@ -183,6 +241,7 @@
   "use strict";
 
   const stage = document.getElementById("stage");
+  const bar = document.getElementById("bar");
   const presetsEl = document.getElementById("presets");
   const speedBtn = document.getElementById("speedBtn");
   const restartBtn = document.getElementById("restartBtn");
@@ -277,8 +336,18 @@
 
   /* ---- auto-hiding chrome ---- */
 
-  const IDLE_MS = 2600;
+  // Touch users have no pointer to move, so a tap is the only way back —
+  // give them longer before the chrome disappears.
+  const IDLE_MS = matchMedia("(pointer: coarse)").matches ? 5000 : 2600;
   let idleTimer = null;
+
+  // The toolbar wraps to two or three rows on a phone; the config panel has to
+  // know how tall it ended up so it never tucks underneath.
+  const barHeight = () =>
+    document.documentElement.style.setProperty("--bar-h", bar.offsetHeight + "px");
+  new ResizeObserver(barHeight).observe(bar);
+  addEventListener("orientationchange", barHeight);
+  barHeight();
 
   function wake() {
     document.body.classList.remove("idle");

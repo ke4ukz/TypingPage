@@ -61,7 +61,7 @@ to normal for the last lines — about 20s per page instead of 68s. Set
   this long, always at a document boundary so the reload is invisible. This is
   how a display picks up content you push; `0` disables it.
 - `scene.background` — anything behind the page; any CSS `background`.
-- `page` — `height`, `aspect` (width/height), `padding`, `background`,
+- `page` — `aspect`, `maxHeight`, `maxWidth`, `padding`, `background`,
   `radius`, `shadow`, and an optional `frame`.
 - `page.frame` — `{ html, css }` injected behind the text, for window chrome,
   status lines, letterheads or CRT vignettes. CSS may target `.tp-sheet`,
@@ -75,9 +75,63 @@ to normal for the last lines — about 20s per page instead of 68s. Set
 - `documents` — an array of documents typed in sequence and looped; each is an
   array of paragraph strings, or one string with blank lines between paragraphs.
 
-Sizes are given in `vh` so a layout holds at any display resolution. Anything
-omitted from `config.js` falls back to `TypingPage.DEFAULTS` in
+Anything omitted from `config.js` falls back to `TypingPage.DEFAULTS` in
 `typing-page.js`.
+
+## Units, and why the layout survives any screen
+
+A plain number in the config is a **proportion**, not pixels:
+
+| Where | Means |
+| --- | --- |
+| `page.maxHeight`, `page.maxWidth` | percent of the viewport |
+| every other number | percent of the **page's own height** |
+
+The page is drawn as the largest box of `page.aspect` that fits inside *both*
+`maxHeight` and `maxWidth`. That is what stops it being cut off — in landscape,
+in portrait, or on a phone.
+
+The second row is the part that matters. Because type size, padding and
+paragraph spacing are fractions of the page rather than of the screen, a page
+rendered small is a faithful scale model of the same page rendered large. The
+line breaks fall in the same places and the copy fills the page the same way at
+every size, so text tuned once is tuned everywhere:
+
+```
+                       page size    type     layout
+16:9  1920x1080        768 x 994    18.4px   57 col x 26 row
+9:16  1080x1920       1015 x 1314   24.3px   57 col x 26 row
+4:3   1024x768         546 x 707    13.1px   57 col x 26 row
+phone  390x844         367 x 474     8.8px   57 col x 26 row
+```
+
+Strings are passed through untouched, so `"2px"`, `"3ch"` and `"1.15em"` still
+work where they read better. Any CSS — including `page.frame.css` — can use
+`calc()` against `var(--tp-u)`, which is 1% of the page's height.
+
+## Orientation
+
+A portrait sign needs no configuration: US Letter is a portrait shape, so it
+gets *bigger* on a 9:16 display than on a 16:9 one, as the table above shows.
+
+For a look that should change shape with the display — a "screen" that wants to
+fill a portrait sign rather than letterbox into it — `page.aspect` also accepts
+a pair, applied by media query with no JavaScript, so a display rotated after
+boot re-lays out on its own:
+
+```js
+aspect: { landscape: 16 / 9, portrait: 9 / 16 }
+```
+
+On a phone the whole page is shown at once, so the type is genuinely small —
+it is a scale model of a full sheet, the same way a document page fits-to-width
+in any reader. The CRT and editor presets read more comfortably there than the
+paper one, because their type is proportionally larger to begin with.
+
+`demo.html` additionally reflows its own toolbar: it wraps to multiple rows,
+drops its label and separators under 760px, turns the config panel into a
+bottom sheet under 460px, enlarges hit targets on touch, and waits 5s rather
+than 2.6s before auto-hiding when there is no pointer to move.
 
 ## Deployment (GitHub Pages)
 

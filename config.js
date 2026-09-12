@@ -37,17 +37,37 @@ const CONFIG = {
   },
 
   /* --------------------------------------------------------------------------
+     UNITS — read this once and the rest of the file explains itself.
+
+     A plain number is a PROPORTION, not pixels:
+       page.maxHeight / page.maxWidth   percent of the viewport
+       every other number               percent of the PAGE's own height
+
+     The page is drawn as the largest box of `aspect` that fits inside both
+     maxHeight and maxWidth, so it is never cut off — 16:9, 9:16 or a phone.
+     And because type and spacing are fractions of the page rather than of the
+     screen, a small page is a faithful scale model of a large one: text that
+     fills the page on a 16:9 sign fills it identically in portrait.
+
+     A string is passed straight through, so "2px", "3ch", "1.15em" still work.
+     Any CSS here may use calc() against var(--tp-u) — 1% of the page height.
+  -------------------------------------------------------------------------- */
+
+  /* --------------------------------------------------------------------------
      PAGE — the sheet of paper / the screen.
-     Sized in vh so the whole layout holds at any display resolution.
   -------------------------------------------------------------------------- */
   page: {
-    height: "92vh",          // everything else scales off this
-    aspect: 8.5 / 11,        // width / height (US Letter)
-    padding: "7vh 6vh",      // margins of the printed area
+    aspect: 8.5 / 11,        // width / height (US Letter). May also be
+                             // { landscape: n, portrait: n } to change shape
+                             // with the orientation of the display.
+    maxHeight: 92,           // at most 92% of the viewport's height
+    maxWidth: 94,            // ...and at most 94% of its width
+    padding: [7.6, 6.5],     // margins of the printed area
     background:
       "linear-gradient(178deg, #fbf7ec 0%, #f6f0e1 60%, #efe7d5 100%)",
-    radius: "2px",
-    shadow: "0 2.2vh 4.5vh rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.08)",
+    radius: 0.2,
+    shadow: "0 calc(2.4 * var(--tp-u)) calc(4.9 * var(--tp-u)) rgba(0,0,0,.55)," +
+            " 0 0 0 1px rgba(0,0,0,.08)",
 
     // Optional chrome drawn behind the text — title bars, status lines,
     // vignettes, letterheads. CSS may target .tp-sheet / .tp-doc / .tp-frame.
@@ -61,11 +81,11 @@ const CONFIG = {
   text: {
     color: "#2e2a24",
     fontFamily: '"Courier New", Courier, monospace',
-    fontSize: "1.7vh",
+    fontSize: 1.85,
     fontWeight: "600",
     lineHeight: 1.75,
     letterSpacing: "0.02em",
-    paragraphSpacing: "1.9vh",
+    paragraphSpacing: 2.05,
     paragraphIndent: "3ch",
     textShadow: "none",
 
@@ -81,7 +101,7 @@ const CONFIG = {
   effects: {
     scanlines: false,
     scanlineOpacity: 0.16,
-    scanlineSize: "3px"
+    scanlineSize: 0.36
   },
 
   /* --------------------------------------------------------------------------

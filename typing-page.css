@@ -4,6 +4,13 @@
    from the active config. You should not need to edit this file.
    ============================================================================= */
 
+/* Viewport units. svh is the *small* viewport height: unlike vh it excludes
+   mobile browser chrome, and unlike dvh it never changes as that chrome slides
+   away — so the page can't be clipped on a phone, and can't rewrap mid-word
+   when the URL bar hides. Falls back to vh where svh is unsupported. */
+:root { --tp-vh: 1vh; --tp-vw: 1vw; }
+@supports (height: 1svh) { :root { --tp-vh: 1svh; } }
+
 html, body { height: 100%; margin: 0; overflow: hidden; }
 body { background: var(--tp-scene-bg, #1b1b1b); }
 
@@ -17,7 +24,13 @@ body { background: var(--tp-scene-bg, #1b1b1b); }
   background: var(--tp-scene-bg, #1b1b1b);
 }
 
-/* The sheet of paper / the screen. This is what gets animated. */
+/* The sheet of paper / the screen. This is what gets animated.
+
+   --tp-page-w / --tp-page-h are set by typing-page.js to the largest box of the
+   configured aspect ratio that fits inside BOTH viewport dimensions, so the
+   page is never cut off in portrait, landscape or anything between.
+   --tp-u is 1% of that page's height: the unit every interior measurement is
+   expressed in, which is what keeps the layout identical at any screen size. */
 .tp-sheet {
   position: relative;
   box-sizing: border-box;

@@ -5,7 +5,15 @@
    Each preset is a patch merged over BASE, so the entries below read as
    "what makes this look different". Pick one in the demo, hit Config, and
    paste the result into config.js to ship it.
+
+   Plain numbers are proportional units — see the "units" note in
+   typing-page.js. page.maxHeight/maxWidth are percentages of the viewport;
+   everything else is a percentage of the page's own height, which is what
+   makes each look identical on a phone, a 16:9 sign and a 9:16 sign.
    ============================================================================= */
+
+/* 1% of the page's height, for use inside frame CSS. */
+const u = n => `calc(${n} * var(--tp-u))`;
 
 /* ---------- shared copy ---------------------------------------------------- */
 
@@ -82,21 +90,22 @@ const PRESETS = [
         background: "radial-gradient(ellipse at 50% 0%, #4a3f35 0%, #2b2420 55%, #191512 100%)"
       },
       page: {
-        height: "92vh",
         aspect: 8.5 / 11,
-        padding: "7vh 6vh",
+        maxHeight: 92,
+        maxWidth: 94,
+        padding: [7.6, 6.5],
         background: "linear-gradient(178deg, #fbf7ec 0%, #f6f0e1 60%, #efe7d5 100%)",
-        radius: "2px",
-        shadow: "0 2.2vh 4.5vh rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.08)"
+        radius: 0.2,
+        shadow: `0 ${u(2.4)} ${u(4.9)} rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.08)`
       },
       text: {
         color: "#2e2a24",
         fontFamily: '"Courier New", Courier, monospace',
-        fontSize: "1.7vh",
+        fontSize: 1.85,
         fontWeight: "600",
         lineHeight: 1.75,
         letterSpacing: "0.02em",
-        paragraphSpacing: "1.9vh",
+        paragraphSpacing: 2.05,
         paragraphIndent: "3ch",
         inkJitter: { enabled: true, offset: 0.6, minOpacity: 0.82 }
       },
@@ -113,28 +122,29 @@ const PRESETS = [
       transition: "clear",
       scene: { background: "#07090a" },
       page: {
-        height: "78vh",
         aspect: 4 / 3,
-        padding: "3.6vh 4vh",
+        maxHeight: 78,
+        maxWidth: 92,
+        padding: [4.6, 5.1],
         background: "radial-gradient(ellipse at 50% 45%, #0f2417 0%, #08150d 70%, #050b07 100%)",
-        radius: "12px",
-        shadow: "0 2vh 5vh rgba(0,0,0,.7), 0 0 0 2px #191919, 0 0 8vh rgba(80,255,140,.10)",
+        radius: 1.4,
+        shadow: `0 ${u(2.6)} ${u(6.4)} rgba(0,0,0,.7), 0 0 0 ${u(0.24)} #191919, 0 0 ${u(10)} rgba(80,255,140,.10)`,
         frame: {
-          css: ".tp-sheet::before{content:'';position:absolute;inset:0;z-index:3;" +
-               "pointer-events:none;border-radius:inherit;" +
-               "box-shadow:inset 0 0 9vh rgba(0,0,0,.8)}"
+          css: `.tp-sheet::before{content:'';position:absolute;inset:0;z-index:3;
+                pointer-events:none;border-radius:inherit;
+                box-shadow:inset 0 0 ${u(11.5)} rgba(0,0,0,.8)}`
         }
       },
       text: {
         color: "#7dfca6",
         fontFamily: 'ui-monospace, Menlo, Consolas, "Courier New", monospace',
-        fontSize: "1.9vh",
+        fontSize: 2.44,
         lineHeight: 1.5,
         letterSpacing: "0.04em",
-        paragraphSpacing: "1.5vh",
-        textShadow: "0 0 0.7vh rgba(90,255,150,.55)"
+        paragraphSpacing: 1.9,
+        textShadow: `0 0 ${u(0.9)} rgba(90,255,150,.55)`
       },
-      effects: { scanlines: true, scanlineOpacity: 0.16, scanlineSize: "3px" },
+      effects: { scanlines: true, scanlineOpacity: 0.16, scanlineSize: 0.36 },
       cursor: { show: true, style: "block", opacity: 0.85 }
     }
   },
@@ -148,28 +158,29 @@ const PRESETS = [
       transition: "clear",
       scene: { background: "#0a0806" },
       page: {
-        height: "78vh",
         aspect: 4 / 3,
-        padding: "3.6vh 4vh",
+        maxHeight: 78,
+        maxWidth: 92,
+        padding: [4.6, 5.1],
         background: "radial-gradient(ellipse at 50% 45%, #2a1a06 0%, #170e03 70%, #0a0601 100%)",
-        radius: "12px",
-        shadow: "0 2vh 5vh rgba(0,0,0,.7), 0 0 0 2px #191919, 0 0 8vh rgba(255,170,60,.12)",
+        radius: 1.4,
+        shadow: `0 ${u(2.6)} ${u(6.4)} rgba(0,0,0,.7), 0 0 0 ${u(0.24)} #191919, 0 0 ${u(10)} rgba(255,170,60,.12)`,
         frame: {
-          css: ".tp-sheet::before{content:'';position:absolute;inset:0;z-index:3;" +
-               "pointer-events:none;border-radius:inherit;" +
-               "box-shadow:inset 0 0 9vh rgba(0,0,0,.8)}"
+          css: `.tp-sheet::before{content:'';position:absolute;inset:0;z-index:3;
+                pointer-events:none;border-radius:inherit;
+                box-shadow:inset 0 0 ${u(11.5)} rgba(0,0,0,.8)}`
         }
       },
       text: {
         color: "#ffb84d",
         fontFamily: 'ui-monospace, Menlo, Consolas, "Courier New", monospace',
-        fontSize: "1.9vh",
+        fontSize: 2.44,
         lineHeight: 1.5,
         letterSpacing: "0.04em",
-        paragraphSpacing: "1.5vh",
-        textShadow: "0 0 0.8vh rgba(255,160,40,.6)"
+        paragraphSpacing: 1.9,
+        textShadow: `0 0 ${u(1)} rgba(255,160,40,.6)`
       },
-      effects: { scanlines: true, scanlineOpacity: 0.18, scanlineSize: "3px" },
+      effects: { scanlines: true, scanlineOpacity: 0.18, scanlineSize: 0.36 },
       cursor: { show: true, style: "block", opacity: 0.9 }
     }
   },
@@ -183,12 +194,13 @@ const PRESETS = [
       transition: "clear",
       scene: { background: "#008080" },     /* the teal desktop */
       page: {
-        height: "80vh",
         aspect: 4 / 3,
-        padding: "8vh 1.2vh 1.2vh",
+        maxHeight: 80,
+        maxWidth: 94,
+        padding: [10, 1.5, 1.5],
         background: "#c0c0c0",
-        radius: "0",
-        shadow: "0 2.5vh 5vh rgba(0,0,0,.45)",
+        radius: 0,
+        shadow: `0 ${u(3.1)} ${u(6.3)} rgba(0,0,0,.45)`,
         frame: {
           html:
             '<div class="w31-bar">' +
@@ -201,37 +213,46 @@ const PRESETS = [
               '<span><u>F</u>ile</span><span><u>E</u>dit</span>' +
               '<span><u>S</u>earch</span><span><u>H</u>elp</span>' +
             '</div>',
-          css: [
-            ".tp-sheet{border:2px solid #000;box-shadow:inset -2px -2px 0 #808080," +
-              "inset 2px 2px 0 #dfdfdf, 0 2.5vh 5vh rgba(0,0,0,.45)}",
-            ".w31-bar{position:absolute;left:.7vh;right:.7vh;top:.7vh;height:3.4vh;" +
-              "background:#000080;display:flex;align-items:center;gap:.4vh;padding:0 .4vh}",
-            ".w31-caption{flex:1;text-align:center;color:#fff;" +
-              "font:bold 1.95vh/1 'MS Sans Serif',Tahoma,Verdana,sans-serif}",
-            ".w31-box{width:2.6vh;height:2.6vh;flex:none;background:#c0c0c0;border:1px solid #000;" +
-              "box-shadow:inset -1px -1px 0 #808080, inset 1px 1px 0 #fff;" +
-              "display:flex;align-items:center;justify-content:center;" +
-              "font:1.4vh/1 'MS Sans Serif',Tahoma,sans-serif;color:#000}",
-            ".w31-sys{order:-1}",
-            ".w31-menu{position:absolute;left:.7vh;right:.7vh;top:4.5vh;height:3vh;" +
-              "display:flex;align-items:center;gap:2.4vh;padding:0 1vh;color:#000;" +
-              "border-bottom:1px solid #808080;" +
-              "font:1.9vh/1 'MS Sans Serif',Tahoma,Verdana,sans-serif}",
-            ".tp-doc{background:#fff;padding:.8vh 1vh;" +
-              "box-shadow:inset 1px 1px 0 #808080, inset -1px -1px 0 #fff, 0 0 0 1px #000}"
-          ].join("")
+          /* --bev keeps the 1px Windows bevels from disappearing on a big sign
+             while never going below a crisp single pixel on a small one. */
+          css: `
+            .tp-sheet{--bev:max(1px, ${u(0.115)});
+              border:calc(var(--bev) * 2) solid #000;
+              box-shadow:inset calc(var(--bev) * -2) calc(var(--bev) * -2) 0 #808080,
+                         inset calc(var(--bev) * 2) calc(var(--bev) * 2) 0 #dfdfdf,
+                         0 ${u(3.1)} ${u(6.3)} rgba(0,0,0,.45)}
+            .w31-bar{position:absolute;left:${u(0.875)};right:${u(0.875)};top:${u(0.875)};
+              height:${u(4.25)};background:#000080;display:flex;align-items:center;
+              gap:${u(0.5)};padding:0 ${u(0.5)}}
+            .w31-caption{flex:1;text-align:center;color:#fff;
+              font:bold ${u(2.44)}/1 'MS Sans Serif',Tahoma,Verdana,sans-serif}
+            .w31-box{width:${u(3.25)};height:${u(3.25)};flex:none;background:#c0c0c0;
+              border:var(--bev) solid #000;
+              box-shadow:inset calc(var(--bev) * -1) calc(var(--bev) * -1) 0 #808080,
+                         inset var(--bev) var(--bev) 0 #fff;
+              display:flex;align-items:center;justify-content:center;
+              font:${u(1.75)}/1 'MS Sans Serif',Tahoma,sans-serif;color:#000}
+            .w31-sys{order:-1}
+            .w31-menu{position:absolute;left:${u(0.875)};right:${u(0.875)};top:${u(5.625)};
+              height:${u(3.75)};display:flex;align-items:center;gap:${u(3)};
+              padding:0 ${u(1.25)};color:#000;border-bottom:var(--bev) solid #808080;
+              font:${u(2.375)}/1 'MS Sans Serif',Tahoma,Verdana,sans-serif}
+            .tp-doc{background:#fff;padding:${u(1)} ${u(1.25)};
+              box-shadow:inset var(--bev) var(--bev) 0 #808080,
+                         inset calc(var(--bev) * -1) calc(var(--bev) * -1) 0 #fff,
+                         0 0 0 var(--bev) #000}`
         }
       },
       text: {
         color: "#000000",
         fontFamily: '"Lucida Console", "Courier New", Monaco, monospace',
-        fontSize: "1.75vh",
+        fontSize: 2.19,
         lineHeight: 1.45,
         letterSpacing: "0",
-        paragraphSpacing: "1.75vh",
+        paragraphSpacing: 2.19,
         paragraphIndent: "0"
       },
-      cursor: { show: true, style: "bar", color: "#000", barWidth: "2px", opacity: 1, blinkPeriod: 1060 }
+      cursor: { show: true, style: "bar", color: "#000", barWidth: 0.25, opacity: 1, blinkPeriod: 1060 }
     }
   },
 
@@ -244,30 +265,31 @@ const PRESETS = [
       transition: "clear",
       scene: { background: "#101012" },
       page: {
-        height: "80vh",
         aspect: 4 / 3,
-        padding: "3.4vh 3.4vh 6vh",
+        maxHeight: 80,
+        maxWidth: 94,
+        padding: [4.25, 4.25, 7.5],
         background: "#0000a8",
-        radius: "4px",
-        shadow: "0 2vh 5vh rgba(0,0,0,.65), 0 0 0 2px #2a2a2a",
+        radius: 0.5,
+        shadow: `0 ${u(2.5)} ${u(6.25)} rgba(0,0,0,.65), 0 0 0 ${u(0.25)} #2a2a2a`,
         frame: {
           html: '<div class="wp-status"><span>C:\\DOCS\\LOREM.WP</span>' +
                 '<span>Doc 1&nbsp;&nbsp;Pg 1&nbsp;&nbsp;Ln 1"&nbsp;&nbsp;Pos 1"</span></div>',
-          css: ".wp-status{position:absolute;left:0;right:0;bottom:2vh;display:flex;" +
-               "justify-content:space-between;padding:0 3.4vh;color:#d8d8d8;" +
-               "font:1.65vh/1 ui-monospace,Consolas,'Courier New',monospace}"
+          css: `.wp-status{position:absolute;left:0;right:0;bottom:${u(2.5)};display:flex;
+                justify-content:space-between;padding:0 ${u(4.25)};color:#d8d8d8;
+                font:${u(2.06)}/1 ui-monospace,Consolas,'Courier New',monospace}`
         }
       },
       text: {
         color: "#f0f0f0",
         fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
-        fontSize: "1.8vh",
+        fontSize: 2.25,
         lineHeight: 1.5,
         letterSpacing: "0.02em",
-        paragraphSpacing: "1.8vh",
+        paragraphSpacing: 2.25,
         paragraphIndent: "5ch"
       },
-      cursor: { show: true, style: "underline", color: "#f0f0f0", underlineHeight: "2px", opacity: 1, blinkPeriod: 900 }
+      cursor: { show: true, style: "underline", color: "#f0f0f0", underlineHeight: 0.25, opacity: 1, blinkPeriod: 900 }
     }
   }
 ];

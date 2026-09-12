@@ -30,10 +30,15 @@ const TypingPage = (function () {
     // Whatever sits behind the page. Any CSS `background` shorthand.
     scene: { background: "#1b1b1b" },
 
+    // The page is drawn as the largest box of `aspect` that fits inside BOTH
+    // maxHeight and maxWidth, so it is never clipped in any orientation.
     page: {
-      height: "92vh",        // everything else scales off this
-      aspect: 8.5 / 11,      // width / height
-      padding: "6vh",
+      aspect: 8.5 / 11,      // width / height. May also be
+                             // { landscape: n, portrait: n } to change shape
+                             // with the display's orientation.
+      maxHeight: 92,         // percent of viewport height
+      maxWidth: 94,          // percent of viewport width
+      padding: 6,            // see "units" below
       background: "#ffffff",
       radius: "0",
       shadow: "none",
@@ -45,11 +50,11 @@ const TypingPage = (function () {
     text: {
       color: "#222222",
       fontFamily: '"Courier New", Courier, monospace',
-      fontSize: "1.7vh",
+      fontSize: 1.85,
       fontWeight: "400",
       lineHeight: 1.7,
       letterSpacing: "0",
-      paragraphSpacing: "1.8vh",
+      paragraphSpacing: 2,
       paragraphIndent: "0",
       textShadow: "none",
       // Typewriter strike imperfection: each glyph is nudged a fraction of a
@@ -60,7 +65,7 @@ const TypingPage = (function () {
     effects: {
       scanlines: false,
       scanlineOpacity: 0.15,
-      scanlineSize: "3px"
+      scanlineSize: 0.36
     },
 
     cursor: {
@@ -113,6 +118,33 @@ const TypingPage = (function () {
     documents: []
   };
 
+  /* ---------- units --------------------------------------------------------
+
+     A plain number in the config is a PROPORTIONAL unit, not pixels:
+
+       page.maxHeight / page.maxWidth   percent of the viewport
+       everything else                  percent of the page's own height
+
+     That second one is the whole trick. Because every interior measurement --
+     type size, padding, paragraph spacing -- is a fraction of the page rather
+     than a fraction of the screen, a page rendered small (a phone, a portrait
+     sign) is a faithful scale model of the same page rendered large. Nothing
+     reflows differently, so copy tuned to fill the page fills it everywhere.
+
+     An array becomes a space-separated list, for shorthands like padding.
+     A string is passed through untouched, so px / em / ch / vh all still work,
+     and CSS anywhere -- including page.frame.css -- can use calc() against
+     var(--tp-u), which is 1% of the page's height.
+  -------------------------------------------------------------------------- */
+
+  function unit(value, u) {
+    if (Array.isArray(value)) return value.map(v => unit(v, u)).join(" ");
+    if (typeof value === "number") return `calc(${value} * ${u})`;
+    return value;
+  }
+
+  const onPage = value => unit(value, "var(--tp-u)");
+
   /* ---------- deep merge -------------------------------------------------- */
 
   function clone(v) {
@@ -137,6 +169,7 @@ const TypingPage = (function () {
 
   let token = 0;              // bumped on every start/stop; cancels stale loops
   let mount = null;
+  let sizeStyle = null;
   let skinStyle = null;
   let onResize = null;
   let blinkTimer = null;
@@ -148,6 +181,7 @@ const TypingPage = (function () {
     clearTimeout(blinkTimer);
     blinkTimer = null;
     if (onResize) { window.removeEventListener("resize", onResize); onResize = null; }
+    if (sizeStyle) { sizeStyle.remove(); sizeStyle = null; }
     if (skinStyle) { skinStyle.remove(); skinStyle = null; }
     if (mount) { mount.textContent = ""; mount = null; }
   }
@@ -172,28 +206,55 @@ const TypingPage = (function () {
     };
 
     set("--tp-scene-bg", cfg.scene.background);
-    set("--tp-page-h", cfg.page.height);
-    set("--tp-page-w", `calc(${cfg.page.height} * ${cfg.page.aspect})`);
-    set("--tp-page-pad", cfg.page.padding);
+
+    /* --- page size: the largest box of `aspect` fitting both viewport axes ---
+
+       Emitted as a stylesheet rather than inline properties so that an
+       orientation-dependent aspect ratio is handled by a media query, with no
+       JavaScript on resize. A rotated sign just re-lays out. */
+
+    // Legacy `page.height` is still accepted as an alias for maxHeight.
+    const maxH = cfg.page.maxHeight !== undefined ? cfg.page.maxHeight : cfg.page.height;
+    set("--tp-max-h", unit(maxH, "var(--tp-vh)"));
+    set("--tp-max-w", unit(cfg.page.maxWidth, "var(--tp-vw)"));
+
+    const sizeRules = aspect => {
+      const w = `min(calc(var(--tp-max-h) * ${aspect}), var(--tp-max-w))`;
+      return `--tp-page-w:${w};` +
+             `--tp-page-h:calc(${w} / ${aspect});` +
+             `--tp-u:calc(${w} / ${aspect} / 100);`;
+    };
+
+    const asp = cfg.page.aspect;
+    const wide = (asp && typeof asp === "object") ? asp.landscape : asp;
+    const tall = (asp && typeof asp === "object") ? asp.portrait : asp;
+
+    sizeStyle = document.createElement("style");
+    sizeStyle.textContent =
+      `:root{${sizeRules(wide)}}` +
+      (tall !== wide ? `@media (orientation:portrait){:root{${sizeRules(tall)}}}` : "");
+    document.head.appendChild(sizeStyle);
+
+    set("--tp-page-pad", onPage(cfg.page.padding));
     set("--tp-page-bg", cfg.page.background);
-    set("--tp-page-radius", cfg.page.radius);
+    set("--tp-page-radius", onPage(cfg.page.radius));
     set("--tp-page-shadow", cfg.page.shadow);
 
     set("--tp-text-color", cfg.text.color);
     set("--tp-text-font", cfg.text.fontFamily);
-    set("--tp-text-size", cfg.text.fontSize);
+    set("--tp-text-size", onPage(cfg.text.fontSize));
     set("--tp-text-weight", cfg.text.fontWeight);
     set("--tp-text-line", cfg.text.lineHeight);
     set("--tp-text-spacing", cfg.text.letterSpacing);
     set("--tp-text-shadow", cfg.text.textShadow);
-    set("--tp-para-space", cfg.text.paragraphSpacing);
+    set("--tp-para-space", onPage(cfg.text.paragraphSpacing));
     set("--tp-para-indent", cfg.text.paragraphIndent);
 
     set("--tp-cursor-color", cfg.cursor.color);
     set("--tp-cursor-opacity", cfg.cursor.opacity);
     set("--tp-cursor-blink", cfg.cursor.blinkPeriod + "ms");
     set("--tp-scan-opacity", cfg.effects.scanlineOpacity);
-    set("--tp-scan-size", cfg.effects.scanlineSize);
+    set("--tp-scan-size", onPage(cfg.effects.scanlineSize));
 
     /* --- DOM --- */
 
@@ -226,8 +287,8 @@ const TypingPage = (function () {
     const CUR = cfg.cursor;
     const cursor = document.createElement("div");
     cursor.className = "tp-cursor" + (CUR.show ? "" : " tp-hidden");
-    set("--tp-cursor-h", CUR.style === "underline" ? CUR.underlineHeight : CUR.height);
-    if (CUR.style === "bar") set("--tp-cursor-w", CUR.barWidth);
+    set("--tp-cursor-h", onPage(CUR.style === "underline" ? CUR.underlineHeight : CUR.height));
+    if (CUR.style === "bar") set("--tp-cursor-w", onPage(CUR.barWidth));
 
     // "block" and "underline" span a whole character cell, so measure one.
     function measureCharWidth() {
