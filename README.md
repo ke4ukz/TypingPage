@@ -58,8 +58,9 @@ to normal for the last lines — about 20s per page instead of 68s. Set
 - `transition` — `"eject"` (page rolls up and out, a fresh one feeds in from
   below) or `"clear"` (text disappears in place).
 - `reloadAfterHours` — above 0, the page reloads itself once it has been up
-  this long, always at a document boundary so the reload is invisible. This is
-  how a display picks up content you push; `0` disables it.
+  this long, always at a document boundary so the reload is invisible, and only
+  after a preflight check that the origin still answers. This is how a display
+  picks up content you push; `0` disables it. See below.
 - `scene.background` — anything behind the page; any CSS `background`.
 - `page` — `aspect`, `maxHeight`, `maxWidth`, `padding`, `background`,
   `radius`, `shadow`, and an optional `frame`.
@@ -167,6 +168,26 @@ for a subdomain; nothing else is needed.
 ### Updating content
 
 Edit `config.js`, commit, push. Pages redeploys in under a minute. Assets are
-served with a ten-minute cache, and a running display picks the change up at
-its next `reloadAfterHours` boundary — so a sign left alone updates on its own
-within twelve hours, and a manual refresh is instant.
+served with a ten-minute cache, so a reload always fetches the new build.
+
+A running display picks the change up by reloading itself. `reloadAfterHours`
+is uptime, not a schedule: the timer starts when that browser session loaded
+and resets on every reload, so a push lands anywhere between immediately and
+twelve hours later depending where the device is in its cycle. A manual refresh
+is of course instant. The reload is a full navigation, so it picks up the
+engine and the CSS too, not just the text.
+
+It only fires at a document boundary, and only after a preflight `HEAD` against
+the page's own URL:
+
+- **Origin answers 200** — reload.
+- **Offline, DNS failure, or no response within 8s** — don't. Navigating away
+  from a working display into a dead network would replace the sign with the
+  browser's error page, and it would stay there until somebody walked over to
+  it. A stale page beats a dead one, so it keeps typing and retries in five
+  minutes.
+- **Origin answers, but not 200** — don't. A resolved `fetch` isn't enough: a
+  404 part-way through a deploy would otherwise reload the sign into a 404.
+
+Set `reloadAfterHours: 0` if your signage player does its own scheduled
+refresh; that is the better place for it when you have one.

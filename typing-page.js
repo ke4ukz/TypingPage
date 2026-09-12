@@ -23,8 +23,9 @@ const TypingPage = (function () {
 
     // Unattended displays never reload, so a hosted page would keep serving the
     // copy it started with. Above 0, the page reloads itself once it has been
-    // running this long — always at a document boundary, never mid-typing.
-    // 0 disables it.
+    // running this long — always at a document boundary, never mid-typing, and
+    // only after confirming the origin still answers, so a network outage
+    // cannot replace the display with a browser error page. 0 disables it.
     reloadAfterHours: 0,
 
     // Whatever sits behind the page. Any CSS `background` shorthand.
@@ -464,6 +465,35 @@ const TypingPage = (function () {
       }).then(alive);
     }
 
+    /* --- reload preflight ---
+
+       Navigating away is irreversible from the page's point of view: if the
+       network is down when the reload fires, the browser throws away a working
+       display and puts up its own error screen, and the sign stays dead until
+       somebody walks over to it. So confirm the origin is actually serving
+       first. A resolved fetch is not sufficient — a 404 part-way through a
+       deploy would reload us into a 404 — hence the res.ok check. */
+
+    const PROBE_TIMEOUT_MS = 8000;
+    const PROBE_RETRY_MS = 5 * 60e3;
+
+    async function originIsServing() {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), PROBE_TIMEOUT_MS);
+      try {
+        const res = await fetch(location.href, {
+          method: "HEAD",
+          cache: "no-store",     // must reach the network, not the disk cache
+          signal: ctl.signal
+        });
+        return res.ok;
+      } catch (e) {
+        return false;            // offline, DNS failure, timeout, file:// ...
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     // Far enough that the page clears the viewport whatever its size.
     const OFF_TOP = "translateY(calc(-50vh - 50% - 4vh))";
     const OFF_BOTTOM = "translateY(calc(50vh + 50% + 4vh))";
@@ -496,6 +526,7 @@ const TypingPage = (function () {
       const ejects = cfg.transition === "eject";
       const reloadAfter = (cfg.reloadAfterHours || 0) * 3600e3;
       const startedAt = Date.now();
+      let probeAgainAt = 0;
       let index = 0;
 
       if (ejects) snapTo(OFF_BOTTOM);
@@ -522,9 +553,15 @@ const TypingPage = (function () {
         }
 
         // Page boundary: the only safe moment to pick up new content.
-        if (reloadAfter && Date.now() - startedAt >= reloadAfter) {
-          location.reload();
-          return;
+        if (reloadAfter && Date.now() - startedAt >= reloadAfter && Date.now() >= probeAgainAt) {
+          if (await originIsServing()) {
+            alive();                   // a stop() during the probe wins
+            location.reload();
+            return;
+          }
+          // Unreachable. Keep typing — a stale page beats a dead one — and
+          // back off rather than probing at every page boundary.
+          probeAgainAt = Date.now() + PROBE_RETRY_MS;
         }
 
         index++;
