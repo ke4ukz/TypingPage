@@ -1,0 +1,108 @@
+/* =============================================================================
+   typing-page.css — engine styles. Shared by index.html and demo.html.
+   Every value here is driven by custom properties that typing-page.js sets
+   from the active config. You should not need to edit this file.
+   ============================================================================= */
+
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body { background: var(--tp-scene-bg, #1b1b1b); }
+
+/* The platen: fills the viewport, centres the page, clips everything. */
+.tp-stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--tp-scene-bg, #1b1b1b);
+}
+
+/* The sheet of paper / the screen. This is what gets animated. */
+.tp-sheet {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--tp-page-w);
+  height: var(--tp-page-h);
+  padding: var(--tp-page-pad);
+  background: var(--tp-page-bg);
+  border-radius: var(--tp-page-radius);
+  box-shadow: var(--tp-page-shadow);
+  overflow: hidden;
+  will-change: transform;
+  transform: translateY(0);
+}
+
+/* Optional CRT scanlines, drawn over the text. */
+.tp-sheet.tp-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,var(--tp-scan-opacity)) 0,
+    rgba(0,0,0,var(--tp-scan-opacity)) calc(var(--tp-scan-size) / 2),
+    transparent calc(var(--tp-scan-size) / 2),
+    transparent var(--tp-scan-size)
+  );
+}
+
+/* Optional chrome supplied by config (page.frame). Sits behind the text. */
+.tp-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The text body. position:relative makes it the cursor's offset parent. */
+.tp-doc {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: var(--tp-text-color);
+  font-family: var(--tp-text-font);
+  font-size: var(--tp-text-size);
+  font-weight: var(--tp-text-weight);
+  line-height: var(--tp-text-line);
+  letter-spacing: var(--tp-text-spacing);
+  text-shadow: var(--tp-text-shadow);
+}
+
+.tp-doc p {
+  margin: 0 0 var(--tp-para-space);
+  text-indent: var(--tp-para-indent);
+  white-space: pre-wrap;          /* keeps double spaces after periods */
+}
+.tp-doc p:last-child { margin-bottom: 0; }
+
+/* The whole document is laid out up front; characters are merely made visible
+   one at a time. visibility preserves layout exactly, so nothing that has
+   already been "typed" ever moves. */
+.tp-ch { visibility: hidden; }
+.tp-ch.tp-on { visibility: visible; }
+
+/* Relative positioning lets ink jitter nudge a glyph without reflowing. */
+.tp-doc.tp-ink .tp-ch { position: relative; }
+
+.tp-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--tp-cursor-w);
+  height: var(--tp-cursor-h);
+  background: var(--tp-cursor-color);
+  opacity: var(--tp-cursor-opacity);
+  pointer-events: none;
+}
+.tp-cursor.tp-hidden { display: none; }
+.tp-cursor.tp-blink { animation: tp-blink var(--tp-cursor-blink) steps(1, end) infinite; }
+
+@keyframes tp-blink {
+  0%   { opacity: var(--tp-cursor-opacity); }
+  50%  { opacity: 0; }
+  100% { opacity: var(--tp-cursor-opacity); }
+}

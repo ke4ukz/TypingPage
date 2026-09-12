@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Typing Page</title>
+<link rel="stylesheet" href="typing-page.css">
+<style>
+  /* Signage hygiene: no pointer, no selection, no tap highlight.
+     Delete this block if you want a normal interactive page. */
+  html { cursor: none; }
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
+</head>
+<body>
+
+<div class="tp-stage" id="stage"></div>
+
+<script src="typing-page.js"></script>
+<script src="config.js"></script>
+<script>TypingPage.start(CONFIG, document.getElementById("stage"));</script>
+
+</body>
+</html>

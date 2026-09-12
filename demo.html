@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Typing Page — Demo</title>
+<link rel="stylesheet" href="typing-page.css">
+<style>
+  /* ===========================================================================
+     Demo chrome. None of this exists on index.html — the signage page loads
+     typing-page.css, typing-page.js and config.js and nothing else.
+     =========================================================================== */
+
+  :root {
+    --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --ui-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .ui { font-family: var(--ui-font); }
+
+  /* ---- auto-hiding toolbar ---- */
+
+  #bar {
+    position: fixed;
+    z-index: 20;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 14px;
+    border-radius: 999px;
+    background: rgba(22, 22, 26, .82);
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 10px 34px rgba(0,0,0,.5);
+    backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    color: #f2f2f4;
+    transition: opacity .35s ease, transform .35s ease;
+  }
+
+  body.idle #bar {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-140%);
+    pointer-events: none;
+  }
+  body.idle { cursor: none; }
+
+  #bar .brand {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.45);
+    margin-right: 6px;
+    white-space: nowrap;
+  }
+
+  #bar .sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 4px 4px;
+    background: rgba(255,255,255,.14);
+  }
+
+  button {
+    font: 500 13px/1 var(--ui-font);
+    color: #e8e8ec;
+    background: rgba(255,255,255,.06);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 8px 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s ease, color .15s ease;
+  }
+  button:hover { background: rgba(255,255,255,.14); }
+  button.on {
+    background: #f2f2f4;
+    color: #17171b;
+    font-weight: 600;
+  }
+  button.ghost { color: rgba(255,255,255,.6); }
+  button.ghost:hover { color: #fff; }
+
+  /* ---- config panel ---- */
+
+  #panel {
+    position: fixed;
+    z-index: 19;
+    top: 70px;
+    left: 50%;
+    width: min(760px, calc(100vw - 48px));
+    max-height: calc(100vh - 110px);
+    transform: translateX(-50%);
+    display: none;
+    flex-direction: column;
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(18,18,22,.94);
+    border: 1px solid rgba(255,255,255,.14);
+    box-shadow: 0 18px 60px rgba(0,0,0,.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: #e8e8ec;
+  }
+  #panel.open { display: flex; }
+
+  #panelHead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  #panelTitle { font: 600 13px var(--ui-font); }
+  #panelNote {
+    flex: 1;
+    font: 12px var(--ui-font);
+    color: rgba(255,255,255,.5);
+  }
+
+  #configText {
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    font: 12px/1.55 var(--ui-mono);
+    color: #cfd6e4;
+    tab-size: 2;
+    white-space: pre;
+  }
+  #configText::selection { background: #3b6ea5; }
+
+  #hint {
+    position: fixed;
+    z-index: 20;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font: 11px var(--ui-font);
+    letter-spacing: .04em;
+    color: rgba(255,255,255,.35);
+    background: rgba(0,0,0,.35);
+    padding: 5px 12px;
+    border-radius: 999px;
+    pointer-events: none;
+    transition: opacity .35s ease;
+  }
+  body.idle #hint { opacity: 0; }
+</style>
+</head>
+<body class="ui">
+
+<div class="tp-stage" id="stage"></div>
+
+<div id="bar">
+  <span class="brand">Typing Page</span>
+  <div id="presets" style="display:flex;gap:4px"></div>
+  <div class="sep"></div>
+  <button id="speedBtn" class="on" title="Fast demo pacing vs. uniform lifelike pacing">Demo speed</button>
+  <button id="restartBtn" class="ghost">Restart</button>
+  <button id="configBtn" class="ghost">Config</button>
+</div>
+
+<div id="panel">
+  <div id="panelHead">
+    <span id="panelTitle"></span>
+    <span id="panelNote"></span>
+    <button id="copyBtn">Copy</button>
+    <button id="closeBtn" class="ghost">Close</button>
+  </div>
+  <pre id="configText"></pre>
+</div>
+
+<div id="hint">move the mouse for controls &nbsp;·&nbsp; 1&ndash;5 presets &nbsp;·&nbsp; S speed &nbsp;·&nbsp; C config &nbsp;·&nbsp; R restart</div>
+
+<script src="typing-page.js"></script>
+<script src="presets.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const stage = document.getElementById("stage");
+  const presetsEl = document.getElementById("presets");
+  const speedBtn = document.getElementById("speedBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const configBtn = document.getElementById("configBtn");
+  const panel = document.getElementById("panel");
+  const panelTitle = document.getElementById("panelTitle");
+  const panelNote = document.getElementById("panelNote");
+  const configText = document.getElementById("configText");
+  const copyBtn = document.getElementById("copyBtn");
+  const closeBtn = document.getElementById("closeBtn");
+
+  let current = PRESETS[0];
+  let demoSpeed = true;
+
+  /* ---- preset buttons ---- */
+
+  const buttons = PRESETS.map((preset, i) => {
+    const b = document.createElement("button");
+    b.textContent = preset.label;
+    b.title = preset.note + "  (" + (i + 1) + ")";
+    b.addEventListener("click", () => select(preset));
+    presetsEl.appendChild(b);
+    return b;
+  });
+
+  function effectiveConfig() {
+    return TypingPage.merge(current.config, { speedCurve: { enabled: demoSpeed } });
+  }
+
+  function select(preset) {
+    current = preset;
+    buttons.forEach((b, i) => b.classList.toggle("on", PRESETS[i] === current));
+    render();
+  }
+
+  function render() {
+    const cfg = TypingPage.start(effectiveConfig(), stage);
+    panelTitle.textContent = current.label;
+    panelNote.textContent = current.note;
+    configText.textContent = "const CONFIG = " + JSON.stringify(cfg, null, 2) + ";";
+  }
+
+  /* ---- controls ---- */
+
+  speedBtn.addEventListener("click", () => {
+    demoSpeed = !demoSpeed;
+    speedBtn.classList.toggle("on", demoSpeed);
+    speedBtn.textContent = demoSpeed ? "Demo speed" : "Real speed";
+    render();
+  });
+
+  restartBtn.addEventListener("click", render);
+
+  function togglePanel(force) {
+    const open = force === undefined ? !panel.classList.contains("open") : force;
+    panel.classList.toggle("open", open);
+    configBtn.classList.toggle("on", open);
+    if (open) wake();
+  }
+  configBtn.addEventListener("click", () => togglePanel());
+  closeBtn.addEventListener("click", () => togglePanel(false));
+
+  copyBtn.addEventListener("click", async () => {
+    const text = configText.textContent;
+    let ok = true;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // file:// and non-secure contexts fall back to the old path
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    }
+    copyBtn.textContent = ok ? "Copied" : "Select & copy";
+    setTimeout(() => { copyBtn.textContent = "Copy"; }, 1400);
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= PRESETS.length) { select(PRESETS[n - 1]); return; }
+    const k = e.key.toLowerCase();
+    if (k === "s") speedBtn.click();
+    else if (k === "r") render();
+    else if (k === "c") togglePanel();
+    else if (k === "escape") togglePanel(false);
+  });
+
+  /* ---- auto-hiding chrome ---- */
+
+  const IDLE_MS = 2600;
+  let idleTimer = null;
+
+  function wake() {
+    document.body.classList.remove("idle");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (!panel.classList.contains("open")) document.body.classList.add("idle");
+    }, IDLE_MS);
+  }
+
+  ["mousemove", "mousedown", "wheel", "touchstart", "keydown"].forEach(evt =>
+    window.addEventListener(evt, wake, { passive: true })
+  );
+
+  /* ---- go ---- */
+
+  select(PRESETS[0]);
+  wake();
+})();
+</script>
+</body>
+</html>
