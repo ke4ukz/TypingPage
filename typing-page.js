@@ -21,6 +21,12 @@ const TypingPage = (function () {
     // "clear" — the finished text simply disappears in place.
     transition: "eject",
 
+    // Unattended displays never reload, so a hosted page would keep serving the
+    // copy it started with. Above 0, the page reloads itself once it has been
+    // running this long — always at a document boundary, never mid-typing.
+    // 0 disables it.
+    reloadAfterHours: 0,
+
     // Whatever sits behind the page. Any CSS `background` shorthand.
     scene: { background: "#1b1b1b" },
 
@@ -427,6 +433,8 @@ const TypingPage = (function () {
       const docs = cfg.documents;
       if (!docs || !docs.length) return;
       const ejects = cfg.transition === "eject";
+      const reloadAfter = (cfg.reloadAfterHours || 0) * 3600e3;
+      const startedAt = Date.now();
       let index = 0;
 
       if (ejects) snapTo(OFF_BOTTOM);
@@ -450,6 +458,12 @@ const TypingPage = (function () {
         } else {
           clearDocument();
           await wait(cfg.timing.clearPause);
+        }
+
+        // Page boundary: the only safe moment to pick up new content.
+        if (reloadAfter && Date.now() - startedAt >= reloadAfter) {
+          location.reload();
+          return;
         }
 
         index++;

@@ -18,6 +18,16 @@ const CONFIG = {
   transition: "eject",
 
   /* --------------------------------------------------------------------------
+     SELF-RELOAD (signage)
+     A display left running for weeks never reloads, so it would keep showing
+     the copy it started with no matter what you push. Above 0, the page
+     reloads itself once it has been running this long — always at a document
+     boundary, never mid-typing, so the reload is invisible.
+     Set to 0 to disable.
+  -------------------------------------------------------------------------- */
+  reloadAfterHours: 12,
+
+  /* --------------------------------------------------------------------------
      SCENE — whatever sits behind the page.
      Any CSS `background` shorthand: colour, gradient, url(...) texture.
   -------------------------------------------------------------------------- */

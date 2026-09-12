@@ -57,6 +57,9 @@ to normal for the last lines — about 20s per page instead of 68s. Set
 
 - `transition` — `"eject"` (page rolls up and out, a fresh one feeds in from
   below) or `"clear"` (text disappears in place).
+- `reloadAfterHours` — above 0, the page reloads itself once it has been up
+  this long, always at a document boundary so the reload is invisible. This is
+  how a display picks up content you push; `0` disables it.
 - `scene.background` — anything behind the page; any CSS `background`.
 - `page` — `height`, `aspect` (width/height), `padding`, `background`,
   `radius`, `shadow`, and an optional `frame`.
@@ -75,3 +78,41 @@ to normal for the last lines — about 20s per page instead of 68s. Set
 Sizes are given in `vh` so a layout holds at any display resolution. Anything
 omitted from `config.js` falls back to `TypingPage.DEFAULTS` in
 `typing-page.js`.
+
+## Deployment (GitHub Pages)
+
+Live at **https://typingpage.ke4ukz.com** — `index.html` at the root, so the
+sign points straight at the bare domain. The demo lives at
+`https://typingpage.ke4ukz.com/demo.html`.
+
+Already in the repo:
+
+- `CNAME` — `typingpage.ke4ukz.com`. Pages reads this on every deploy; without
+  it the custom domain gets dropped whenever the site rebuilds.
+- `.nojekyll` — skips Jekyll processing. Nothing here needs it.
+- `favicon.svg` — referenced by both pages, so no 404 in the access logs.
+
+Every path in the HTML is relative and nothing loads from a CDN, so the site
+works unchanged at the custom domain root, at
+`ke4ukz.github.io/TypingPage/` before DNS resolves, and from `file://`.
+
+### One-time setup
+
+1. Push `main`.
+2. **Settings → Pages → Build and deployment**: Source `Deploy from a branch`,
+   branch `main`, folder `/ (root)`. There is no build step, so a GitHub
+   Actions workflow would only add moving parts.
+3. Same page, **Custom domain**: enter `typingpage.ke4ukz.com` and save. It
+   will already match the `CNAME` file. Wait for the DNS check to pass, then
+   tick **Enforce HTTPS** once the certificate is issued (usually minutes, up
+   to an hour).
+
+Your DNS `CNAME` for `typingpage` → `ke4ukz.github.io` is the correct record
+for a subdomain; nothing else is needed.
+
+### Updating content
+
+Edit `config.js`, commit, push. Pages redeploys in under a minute. Assets are
+served with a ten-minute cache, and a running display picks the change up at
+its next `reloadAfterHours` boundary — so a sign left alone updates on its own
+within twelve hours, and a manual refresh is instant.
