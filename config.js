@@ -19,13 +19,50 @@ const CONFIG = {
 
   /* --------------------------------------------------------------------------
      SELF-RELOAD (signage)
-     A display left running for weeks never reloads, so it would keep showing
-     the copy it started with no matter what you push. Above 0, the page
-     reloads itself once it has been running this long — always at a document
-     boundary, never mid-typing, so the reload is invisible.
-     Set to 0 to disable.
+
+     A display left running for weeks never reloads, so it keeps showing the
+     copy it started with no matter what you publish. This reloads it — but
+     only at a document boundary, so the reload is invisible, and only once it
+     is satisfied the reload will land somewhere real.
+
+     SERVED FROM A LOCAL FILE (SD card, USB stick, player's own storage):
+     leave this alone. The mechanism disables itself on file:// — there is
+     nothing to re-fetch, and changing the card means restarting the player
+     anyway. You can also just set afterHours: 0 and forget it exists.
+
+     SERVED FROM A HOST: the defaults below suit a plain static host that sends
+     ETag or Last-Modified. If yours behaves differently, see the table in the
+     README under "Hosts that behave differently" — the short version is that
+     every assumption this makes about your web server is a knob here.
   -------------------------------------------------------------------------- */
-  reloadAfterHours: 12,
+  reload: {
+    afterHours: 12,        // 0 disables. Uptime since load, NOT a clock time:
+                           // the timer restarts on every reload, so a change
+                           // lands somewhere within this many hours, not at a
+                           // predictable moment of the day.
+
+    onlyIfChanged: true,   // Compare ETag/Last-Modified against what this page
+                           // loaded with, and skip the reload if the site has
+                           // not actually changed. Lets you set afterHours low
+                           // for prompt updates without reloading all day.
+
+    probe: true,           // Check the origin answers before navigating away.
+                           // With this off, an outage at the wrong moment
+                           // replaces the sign with a browser error page.
+
+    url: null,             // What to probe. Default: this page's own URL.
+    method: "HEAD",        // "GET" if your server answers HEAD with 405.
+    expectText: null,      // Text that must appear in the response, e.g.
+                           // "<title>Typing Page" — defeats captive portals
+                           // and SSO pages that cheerfully return 200.
+                           // Forces a GET, since HEAD has no body to search.
+
+    timeoutMs: 8000,       // Give up on a hung connection.
+    retryMinutes: 5,       // Back-off after an unreachable probe.
+    cacheBust: false       // true if your host serves the HTML itself with a
+                           // long max-age, where a plain reload would be
+                           // answered from cache with the same page.
+  },
 
   /* --------------------------------------------------------------------------
      SCENE — whatever sits behind the page.

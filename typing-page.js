@@ -21,12 +21,27 @@ const TypingPage = (function () {
     // "clear" — the finished text simply disappears in place.
     transition: "eject",
 
-    // Unattended displays never reload, so a hosted page would keep serving the
-    // copy it started with. Above 0, the page reloads itself once it has been
-    // running this long — always at a document boundary, never mid-typing, and
-    // only after confirming the origin still answers, so a network outage
-    // cannot replace the display with a browser error page. 0 disables it.
-    reloadAfterHours: 0,
+    // Unattended displays never reload, so a hosted page keeps serving the copy
+    // it started with. This reloads it — but only at a document boundary, and
+    // only once it is satisfied the reload will land somewhere real.
+    //
+    // Automatically inert on file:// — there is nothing to re-fetch from an SD
+    // card, and swapping the card means restarting the player anyway.
+    //
+    // Defaults suit a static host that sends ETag/Last-Modified and sane cache
+    // headers. See README "Hosts that behave differently" for the knobs that
+    // matter elsewhere.
+    reload: {
+      afterHours: 0,        // 0 disables. Uptime since load, not a clock time.
+      onlyIfChanged: true,  // compare validators; skip a reload that changes nothing
+      probe: true,          // check the origin answers before navigating away
+      url: null,            // default: this page's own URL
+      method: "HEAD",       // "GET" for servers that reject HEAD with 405
+      expectText: null,     // response must contain this string (forces GET)
+      timeoutMs: 8000,      // give up on a hung connection
+      retryMinutes: 5,      // back-off after an unreachable probe
+      cacheBust: false      // for hosts serving HTML with a long max-age
+    },
 
     // Whatever sits behind the page. Any CSS `background` shorthand.
     scene: { background: "#1b1b1b" },
@@ -194,6 +209,11 @@ const TypingPage = (function () {
 
     const cfg = merge(DEFAULTS, userConfig);
     const run = ++token;
+
+    // Back-compat: a flat reloadAfterHours predates the reload block.
+    if (cfg.reloadAfterHours !== undefined && !(userConfig && userConfig.reload)) {
+      cfg.reload.afterHours = cfg.reloadAfterHours;
+    }
 
     mount = mountElement || document.querySelector(".tp-stage");
     if (!mount) throw new Error("TypingPage: no mount element");
@@ -465,33 +485,66 @@ const TypingPage = (function () {
       }).then(alive);
     }
 
-    /* --- reload preflight ---
+    /* --- reload preflight ---------------------------------------------------
 
-       Navigating away is irreversible from the page's point of view: if the
-       network is down when the reload fires, the browser throws away a working
-       display and puts up its own error screen, and the sign stays dead until
-       somebody walks over to it. So confirm the origin is actually serving
-       first. A resolved fetch is not sufficient — a 404 part-way through a
-       deploy would reload us into a 404 — hence the res.ok check. */
+       Navigating away is irreversible from the page's point of view. If the
+       reload lands on a dead network, a captive portal or a half-finished
+       deploy, the browser throws away a working display and the sign stays
+       wrong until somebody walks over to it. So the reload has to earn its
+       trust first, and every assumption it makes is a config knob, because
+       they are all assumptions about someone else's web server.
 
-    const PROBE_TIMEOUT_MS = 8000;
-    const PROBE_RETRY_MS = 5 * 60e3;
+       file:// short-circuits the whole mechanism: fetch() is blocked there, so
+       an unguarded probe would fail forever, and there is nothing to re-fetch
+       from local storage in any case. */
 
-    async function originIsServing() {
+    const RL = cfg.reload;
+    const isFile = location.protocol === "file:";
+    const reloadAfter = (!isFile && RL.afterHours > 0) ? RL.afterHours * 3600e3 : 0;
+
+    // expectText needs a body to search, which a HEAD response does not have.
+    const probeMethod = RL.expectText ? "GET" : (RL.method || "HEAD");
+
+    async function probe() {
       const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), PROBE_TIMEOUT_MS);
+      const timer = setTimeout(() => ctl.abort(), RL.timeoutMs);
       try {
-        const res = await fetch(location.href, {
-          method: "HEAD",
-          cache: "no-store",     // must reach the network, not the disk cache
+        const res = await fetch(RL.url || location.href, {
+          method: probeMethod,
+          cache: "no-store",        // must reach the network, not the disk cache
+          redirect: "follow",
           signal: ctl.signal
         });
-        return res.ok;
+        // A resolved fetch is not enough: a 404 part-way through a deploy, or a
+        // captive portal's login page, both resolve perfectly happily.
+        if (!res.ok) return null;
+        if (RL.expectText && !(await res.text()).includes(RL.expectText)) return null;
+        return res;
       } catch (e) {
-        return false;            // offline, DNS failure, timeout, file:// ...
+        return null;                // offline, DNS failure, timeout, blocked
       } finally {
         clearTimeout(timer);
       }
+    }
+
+    // Whatever the host gives us to tell two versions apart. A host that sends
+    // neither leaves this null, and onlyIfChanged then falls back to reloading
+    // on the interval, which is the behaviour you would have had regardless.
+    const versionOf = res =>
+      res.headers.get("etag") || res.headers.get("last-modified") || null;
+
+    let loadedVersion = null;
+    if (reloadAfter && RL.probe && RL.onlyIfChanged) {
+      probe().then(res => { if (res) loadedVersion = versionOf(res); });
+    }
+
+    function doReload() {
+      if (!RL.cacheBust) return location.reload();
+      // For hosts that serve the HTML itself with a long max-age, where a plain
+      // reload would be answered from cache with the very page we are replacing.
+      const url = new URL(location.href);
+      url.searchParams.set("_", Date.now());
+      location.replace(url.toString());
     }
 
     // Far enough that the page clears the viewport whatever its size.
@@ -524,8 +577,7 @@ const TypingPage = (function () {
       const docs = cfg.documents;
       if (!docs || !docs.length) return;
       const ejects = cfg.transition === "eject";
-      const reloadAfter = (cfg.reloadAfterHours || 0) * 3600e3;
-      const startedAt = Date.now();
+      let sinceReload = Date.now();
       let probeAgainAt = 0;
       let index = 0;
 
@@ -553,15 +605,26 @@ const TypingPage = (function () {
         }
 
         // Page boundary: the only safe moment to pick up new content.
-        if (reloadAfter && Date.now() - startedAt >= reloadAfter && Date.now() >= probeAgainAt) {
-          if (await originIsServing()) {
-            alive();                   // a stop() during the probe wins
-            location.reload();
+        if (reloadAfter && Date.now() - sinceReload >= reloadAfter && Date.now() >= probeAgainAt) {
+          if (!RL.probe) {
+            doReload();
             return;
           }
-          // Unreachable. Keep typing — a stale page beats a dead one — and
-          // back off rather than probing at every page boundary.
-          probeAgainAt = Date.now() + PROBE_RETRY_MS;
+          const res = await probe();
+          alive();                        // a stop() during the probe wins
+
+          if (!res) {
+            // Unreachable. A stale page beats a dead one: keep typing, and back
+            // off rather than probing at every page boundary through an outage.
+            probeAgainAt = Date.now() + RL.retryMinutes * 60e3;
+          } else if (RL.onlyIfChanged && loadedVersion && versionOf(res) === loadedVersion) {
+            // Reachable but byte-identical. Reloading would only risk a blank
+            // frame for nothing, so wait out another interval.
+            sinceReload = Date.now();
+          } else {
+            doReload();
+            return;
+          }
         }
 
         index++;

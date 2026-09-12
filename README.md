@@ -57,10 +57,8 @@ to normal for the last lines — about 20s per page instead of 68s. Set
 
 - `transition` — `"eject"` (page rolls up and out, a fresh one feeds in from
   below) or `"clear"` (text disappears in place).
-- `reloadAfterHours` — above 0, the page reloads itself once it has been up
-  this long, always at a document boundary so the reload is invisible, and only
-  after a preflight check that the origin still answers. This is how a display
-  picks up content you push; `0` disables it. See below.
+- `reload` — how (and whether) an unattended display refreshes itself to pick
+  up published changes. Inert on `file://`. See "Keeping a sign up to date".
 - `scene.background` — anything behind the page; any CSS `background`.
 - `page` — `aspect`, `maxHeight`, `maxWidth`, `padding`, `background`,
   `radius`, `shadow`, and an optional `frame`.
@@ -167,27 +165,64 @@ for a subdomain; nothing else is needed.
 
 ### Updating content
 
-Edit `config.js`, commit, push. Pages redeploys in under a minute. Assets are
-served with a ten-minute cache, so a reload always fetches the new build.
+Edit `config.js`, commit, push. Pages redeploys in under a minute, and assets
+are served with a ten-minute cache, so any reload fetches the new build.
 
-A running display picks the change up by reloading itself. `reloadAfterHours`
-is uptime, not a schedule: the timer starts when that browser session loaded
-and resets on every reload, so a push lands anywhere between immediately and
-twelve hours later depending where the device is in its cycle. A manual refresh
-is of course instant. The reload is a full navigation, so it picks up the
-engine and the CSS too, not just the text.
+## Keeping a sign up to date
 
-It only fires at a document boundary, and only after a preflight `HEAD` against
-the page's own URL:
+A display left running for weeks never reloads, so it keeps showing the copy it
+started with. The `reload` block handles that. It is off by default
+(`afterHours: 0`); `config.js` ships with it set to 12 hours.
 
-- **Origin answers 200** — reload.
-- **Offline, DNS failure, or no response within 8s** — don't. Navigating away
-  from a working display into a dead network would replace the sign with the
-  browser's error page, and it would stay there until somebody walked over to
-  it. A stale page beats a dead one, so it keeps typing and retries in five
-  minutes.
-- **Origin answers, but not 200** — don't. A resolved `fetch` isn't enough: a
-  404 part-way through a deploy would otherwise reload the sign into a 404.
+### Served from local storage
 
-Set `reloadAfterHours: 0` if your signage player does its own scheduled
-refresh; that is the better place for it when you have one.
+If the page lives on an SD card, a USB stick or the player's own disk, **ignore
+this section**. The mechanism disables itself on `file://`: there is nothing to
+re-fetch, `fetch()` is blocked there anyway, and changing the card means
+restarting the player. Setting `afterHours: 0` makes that explicit if you'd
+rather not rely on the detection.
+
+### Served from a host
+
+Two things to be clear about before trusting it:
+
+**`afterHours` is uptime, not a schedule.** The timer starts when that browser
+session loaded and restarts on every reload, so a change lands *within* that
+many hours, not at a predictable time of day.
+
+**A reload is a one-way door.** If it lands on a dead network, a captive portal
+or a half-finished deploy, the browser discards a working display for its own
+error page and the sign stays wrong until somebody attends to it. So the reload
+only happens at a document boundary, and only after a preflight that must pass:
+
+| Probe result | What happens |
+| --- | --- |
+| 200, and the version changed | Reload |
+| 200, byte-identical (`onlyIfChanged`) | Nothing — wait out another interval |
+| Any non-2xx, e.g. a deploy mid-flight | Keep typing, retry in `retryMinutes` |
+| Offline, DNS failure, no answer in `timeoutMs` | Keep typing, retry in `retryMinutes` |
+| 200 but `expectText` is missing | Keep typing, retry in `retryMinutes` |
+
+`onlyIfChanged` compares the `ETag` (or `Last-Modified`) of the probe against
+the one this page loaded with. Because an unchanged site costs nothing, you can
+set `afterHours` low — 1, or 0.5 — for prompt updates without a display that
+reloads all day for no reason.
+
+### Hosts that behave differently
+
+The defaults assume a plain static host that sends validators and sane cache
+headers. Every other assumption is a knob, because they are all assumptions
+about someone else's web server:
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Never reloads; probe always fails | Server answers `HEAD` with 405 | `method: "GET"` |
+| Reloads on schedule but shows the old page | HTML served with a long `max-age`, so the reload is answered from cache | `cacheBust: true` |
+| Reloads every interval even when nothing changed | Host sends no `ETag`/`Last-Modified`, or regenerates one per request | Harmless — that is the pre-`onlyIfChanged` behaviour. Raise `afterHours` |
+| Sign shows a WiFi login or SSO page | Captive portal answering 200 for everything | `expectText: "<title>Typing Page"` |
+| Probe passes but the app is broken | Health of `/` isn't what you care about | Point `url` at something more meaningful |
+| Slow link, probes time out | 8s is too tight | Raise `timeoutMs` |
+
+Set `probe: false` for the old unconditional behaviour, and `afterHours: 0` to
+turn the whole thing off — worth doing if your signage player has its own
+scheduled refresh, which is the better place for it when you have one.
